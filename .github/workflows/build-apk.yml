@@ -16,13 +16,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept licenses and install SDK
+      # ubuntu-latest 已预装 Android SDK，无需 setup-android（该 action 的 sdkmanager tools 已废弃会失败）
+      - name: Install SDK packages
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          export SDKMANAGER=$(find $ANDROID_HOME/cmdline-tools -name sdkmanager -type f | head -n 1)
+          echo "SDKMANAGER=$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Generate Gradle wrapper
         working-directory: android
