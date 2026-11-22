@@ -11,7 +11,7 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
 public class MainActivity extends Activity {
-    private static final String HOME_URL = "https://tv.katelya.eu.org";
+    private static final String HOME_URL = "https://katelyatv.pages.dev";
 
     private WebView webView;
     private FrameLayout fullscreenContainer;
