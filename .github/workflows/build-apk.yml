@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GRADLE_VERSION: '8.2'
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -16,7 +18,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # ubuntu-latest 已预装 Android SDK，无需 setup-android（该 action 的 sdkmanager tools 已废弃会失败）
+      # runner 预装的 Gradle 9.x 与 AGP 8.1.4 不兼容，手动下载 Gradle 8.2
+      - name: Download Gradle 8.2
+        run: |
+          curl -L -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip
+          unzip -q /tmp/gradle.zip -d /opt
+          echo "/opt/gradle-${GRADLE_VERSION}/bin" >> $GITHUB_PATH
+
       - name: Install SDK packages
         run: |
           export SDKMANAGER=$(find $ANDROID_HOME/cmdline-tools -name sdkmanager -type f | head -n 1)
@@ -26,7 +34,7 @@ jobs:
 
       - name: Generate Gradle wrapper
         working-directory: android
-        run: gradle wrapper --gradle-version 8.2 --distribution-type bin
+        run: gradle wrapper --gradle-version ${GRADLE_VERSION} --distribution-type bin
 
       - name: Generate signing key
         working-directory: android/app
