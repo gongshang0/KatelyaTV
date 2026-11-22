@@ -1,0 +1,54 @@
+name: Build KatelyaTV APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses and install SDK
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Generate Gradle wrapper
+        working-directory: android
+        run: gradle wrapper --gradle-version 8.2 --distribution-type bin
+
+      - name: Generate signing key
+        working-directory: android/app
+        env:
+          KEY_PASSWORD: KatelyaTV2026
+        run: |
+          keytool -genkey -v -keystore release.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 -alias katelya \
+            -storepass "$KEY_PASSWORD" -keypass "$KEY_PASSWORD" \
+            -dname "CN=KatelyaTV, OU=Personal, O=Personal, L=NA, ST=NA, C=US"
+
+      - name: Build release APK
+        working-directory: android
+        env:
+          MYAPP_UPLOAD_STORE_FILE: release.jks
+          MYAPP_UPLOAD_KEY_ALIAS: katelya
+          MYAPP_UPLOAD_STORE_PASSWORD: KatelyaTV2026
+          MYAPP_UPLOAD_KEY_PASSWORD: KatelyaTV2026
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: katelyatv-apk
+          path: android/app/build/outputs/apk/release/*.apk
