@@ -416,24 +416,40 @@ function PlayPageClient() {
     }
   };
 
-  // 去广告相关函数
+  // 去广告：删除成对 #EXT-X-DISCONTINUITY 之间的广告块（连同标记与切片一起删除）
+  // 实测广告特征：4~7 个切片、20~26 秒，同一广告 ts 常在片头片尾重复插入
   function filterAdsFromM3U8(m3u8Content: string): string {
     if (!m3u8Content) return '';
 
-    // 按行分割M3U8内容
-    const lines = m3u8Content.split('\n');
-    const filteredLines = [];
+    // 统一去掉 \r，兼容 CRLF 换行的播放列表
+    const lines = m3u8Content.split('\n').map(line => line.replace(/\r$/, ''));
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // 只过滤#EXT-X-DISCONTINUITY标识
-      if (!line.includes('#EXT-X-DISCONTINUITY')) {
-        filteredLines.push(line);
+    // 最多处理 20 组，避免异常数据导致长时间循环
+    for (let guard = 0; guard < 20; guard++) {
+      const dis: number[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === '#EXT-X-DISCONTINUITY') dis.push(i);
       }
+      if (dis.length < 2) break;
+
+      // 相邻两个 DIS 相距 2~20 行判定为广告段（正片间隔远大于此），保留其他 DIS 避免误删
+      let start = -1;
+      let end = -1;
+      for (let k = 0; k < dis.length - 1; k++) {
+        const gap = dis[k + 1] - dis[k];
+        if (gap >= 2 && gap <= 20) {
+          start = dis[k];
+          end = dis[k + 1];
+          break;
+        }
+      }
+      if (start < 0) break;
+
+      // 整块删除：#EXT-X-DISCONTINUITY + 广告切片的 #EXTINF 与 .ts 行
+      lines.splice(start, end - start + 1);
     }
 
-    return filteredLines.join('\n');
+    return lines.join('\n');
   }
 
   class CustomHlsJsLoader extends Hls.DefaultConfig.loader {
